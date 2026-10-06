@@ -1,0 +1,159 @@
+@host = http://localhost:5136
+@users = {{host}}/api/users
+# Development token for the "hr-portal" client (from appsettings.Development.json)
+@token = 2JFY8QmsMU2T4G0zeWLatEwQIlJ3vUmfFvZFcd0Bx7M
+
+### Get all users
+GET {{users}}
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Get user by ID
+GET {{users}}/1
+Authorization: Bearer {{token}}
+
+### Get missing user (expect 404)
+GET {{users}}/99
+Authorization: Bearer {{token}}
+
+### Create user (expect 201 + Location header)
+POST {{users}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "firstName": "Carol",
+  "lastName": "Diaz",
+  "email": "carol.diaz@techhive.com",
+  "department": "Finance"
+}
+
+### Create invalid user (expect 400 validation errors)
+POST {{users}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "firstName": "",
+  "lastName": "X",
+  "email": "not-an-email",
+  "department": "IT"
+}
+
+### Create user with duplicate email (expect 409)
+POST {{users}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "firstName": "Alice",
+  "lastName": "Clone",
+  "email": "alice.johnson@techhive.com",
+  "department": "HR"
+}
+
+### Update user (expect 200)
+PUT {{users}}/3
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "firstName": "Carol",
+  "lastName": "Diaz-Lopez",
+  "email": "carol.diaz@techhive.com",
+  "department": "IT"
+}
+
+### Update missing user (expect 404)
+PUT {{users}}/99
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "firstName": "Zed",
+  "lastName": "Nobody",
+  "email": "zed@techhive.com",
+  "department": "IT"
+}
+
+### Delete user (expect 204)
+DELETE {{users}}/3
+Authorization: Bearer {{token}}
+
+### Delete same user again (expect 404)
+DELETE {{users}}/3
+Authorization: Bearer {{token}}
+
+### ===== Edge cases (debugging phase) =====
+
+### Paged list (expect 200, 1 item, X-Total-Count header)
+GET {{users}}?page=1&pageSize=1
+Authorization: Bearer {{token}}
+
+### Page size out of range (expect 400)
+GET {{users}}?pageSize=500
+Authorization: Bearer {{token}}
+
+### Non-numeric ID (expect 404 with problem-details body)
+GET {{users}}/abc
+Authorization: Bearer {{token}}
+
+### Email without a dotted domain (expect 400)
+POST {{users}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "firstName": "Dan",
+  "lastName": "Lee",
+  "email": "dan@localhost",
+  "department": "IT"
+}
+
+### Names with symbols/digits (expect 400 on every field)
+POST {{users}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "firstName": "<script>",
+  "lastName": "123",
+  "email": "dan.lee@techhive.com",
+  "department": "!!!"
+}
+
+### Real-world names (expect 201)
+POST {{users}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "firstName": "Seán",
+  "lastName": "O'Brien-Murphy",
+  "email": "sean.obrien@techhive.com",
+  "department": "Research & Development"
+}
+
+### Malformed JSON (expect 400)
+POST {{users}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "firstName":}
+
+### ===== Middleware (authentication, errors, logging) =====
+
+### No token (expect 401 "Missing bearer token.")
+GET {{users}}
+
+### Invalid token (expect 401 "Invalid bearer token.")
+GET {{users}}
+Authorization: Bearer not-a-real-token
+
+### Wrong scheme (expect 401)
+GET {{users}}
+Authorization: Basic dXNlcjpwYXNz
+
+### Trigger an unhandled exception (Development only; expect 500 { "error": "Internal server error." })
+GET {{host}}/api/debug/throw
+Authorization: Bearer {{token}}

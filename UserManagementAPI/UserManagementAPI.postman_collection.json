@@ -1,0 +1,209 @@
+{
+  "info": {
+    "name": "UserManagementAPI",
+    "description": "CRUD tests for the TechHive User Management API. Run the requests in order (Collection Runner).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5136" },
+    { "key": "newUserId", "value": "3" },
+    { "key": "token", "value": "2JFY8QmsMU2T4G0zeWLatEwQIlJ3vUmfFvZFcd0Bx7M" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Get all users",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/users" },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+        "pm.test('Returns an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+      ] } }]
+    },
+    {
+      "name": "Get user by ID",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/users/1" },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+        "pm.test('Returns user 1', () => pm.expect(pm.response.json().id).to.eql(1));"
+      ] } }]
+    },
+    {
+      "name": "Get missing user (404)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/users/99" },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+      ] } }]
+    },
+    {
+      "name": "Create user",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/users",
+        "body": { "mode": "raw", "raw": "{\n  \"firstName\": \"Carol\",\n  \"lastName\": \"Diaz\",\n  \"email\": \"carol.diaz@techhive.com\",\n  \"department\": \"Finance\"\n}" }
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+        "pm.test('Has Location header', () => pm.response.to.have.header('Location'));",
+        "pm.collectionVariables.set('newUserId', pm.response.json().id);"
+      ] } }]
+    },
+    {
+      "name": "Create invalid user (400)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/users",
+        "body": { "mode": "raw", "raw": "{\n  \"firstName\": \"\",\n  \"lastName\": \"X\",\n  \"email\": \"not-an-email\",\n  \"department\": \"IT\"\n}" }
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+      ] } }]
+    },
+    {
+      "name": "Create duplicate email (409)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/users",
+        "body": { "mode": "raw", "raw": "{\n  \"firstName\": \"Alice\",\n  \"lastName\": \"Clone\",\n  \"email\": \"alice.johnson@techhive.com\",\n  \"department\": \"HR\"\n}" }
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status is 409', () => pm.response.to.have.status(409));"
+      ] } }]
+    },
+    {
+      "name": "Create user with weak email (400)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/users",
+        "body": { "mode": "raw", "raw": "{\n  \"firstName\": \"Dan\",\n  \"lastName\": \"Lee\",\n  \"email\": \"dan@localhost\",\n  \"department\": \"IT\"\n}" }
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+        "pm.test('Email error reported', () => pm.expect(pm.response.json().errors).to.have.property('Email'));"
+      ] } }]
+    },
+    {
+      "name": "Create user with symbol names (400)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/users",
+        "body": { "mode": "raw", "raw": "{\n  \"firstName\": \"<script>\",\n  \"lastName\": \"123\",\n  \"email\": \"dan.lee@techhive.com\",\n  \"department\": \"!!!\"\n}" }
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+        "pm.test('All three fields rejected', () => pm.expect(pm.response.json().errors).to.include.all.keys('FirstName', 'LastName', 'Department'));"
+      ] } }]
+    },
+    {
+      "name": "Malformed JSON (400)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/users",
+        "body": { "mode": "raw", "raw": "{ \"firstName\":" }
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+      ] } }]
+    },
+    {
+      "name": "Get non-numeric ID (404)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/users/abc" },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+        "pm.test('Has problem-details body', () => pm.expect(pm.response.json().status).to.eql(404));"
+      ] } }]
+    },
+    {
+      "name": "Get users paged",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/users?page=1&pageSize=1" },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+        "pm.test('One item returned', () => pm.expect(pm.response.json()).to.have.lengthOf(1));",
+        "pm.test('Has X-Total-Count header', () => pm.response.to.have.header('X-Total-Count'));"
+      ] } }]
+    },
+    {
+      "name": "Get users with page size too large (400)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/users?pageSize=500" },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+      ] } }]
+    },
+    {
+      "name": "Update user",
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/users/{{newUserId}}",
+        "body": { "mode": "raw", "raw": "{\n  \"firstName\": \"Carol\",\n  \"lastName\": \"Diaz-Lopez\",\n  \"email\": \"carol.diaz@techhive.com\",\n  \"department\": \"IT\"\n}" }
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+        "pm.test('Last name updated', () => pm.expect(pm.response.json().lastName).to.eql('Diaz-Lopez'));"
+      ] } }]
+    },
+    {
+      "name": "Update missing user (404)",
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/users/99",
+        "body": { "mode": "raw", "raw": "{\n  \"firstName\": \"Zed\",\n  \"lastName\": \"Nobody\",\n  \"email\": \"zed@techhive.com\",\n  \"department\": \"IT\"\n}" }
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+      ] } }]
+    },
+    {
+      "name": "Delete user",
+      "request": { "method": "DELETE", "url": "{{baseUrl}}/api/users/{{newUserId}}" },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+      ] } }]
+    },
+    {
+      "name": "Delete missing user (404)",
+      "request": { "method": "DELETE", "url": "{{baseUrl}}/api/users/{{newUserId}}" },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+      ] } }]
+    },
+    {
+      "name": "No token (401)",
+      "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/api/users" },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+        "pm.test('Has WWW-Authenticate header', () => pm.response.to.have.header('WWW-Authenticate'));",
+        "pm.test('Standard error body', () => pm.expect(pm.response.json().error).to.eql('Unauthorized.'));"
+      ] } }]
+    },
+    {
+      "name": "Invalid token (401)",
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "not-a-real-token", "type": "string" }] },
+        "method": "GET", "url": "{{baseUrl}}/api/users"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+        "pm.test('Reports invalid token', () => pm.expect(pm.response.json().detail).to.eql('Invalid bearer token.'));"
+      ] } }]
+    },
+    {
+      "name": "Trigger exception (500, Development only)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/debug/throw" },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status is 500', () => pm.response.to.have.status(500));",
+        "pm.test('Standard error body', () => pm.expect(pm.response.json().error).to.eql('Internal server error.'));",
+        "pm.test('No internal details leaked', () => pm.expect(pm.response.text()).to.not.include('Simulated failure'));"
+      ] } }]
+    }
+  ]
+}
